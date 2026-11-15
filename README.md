@@ -33,6 +33,7 @@ Settings, the database and images live in `%APPDATA%\Clipboard Memory`.
 | `Alt+Enter` | Copy as plain text |
 | `Ctrl+P` / `Ctrl+D` | Pin / favourite |
 | `Del` | Delete (when the search box is empty, or `Ctrl+Del`) |
+| **Clear** button (bottom right) | Clear the history; pinned items are always kept |
 | `Tab` / `Shift+Tab`, `Ctrl+1..8` | Next / previous filter, pick a filter |
 
 ### Windows notes and limits

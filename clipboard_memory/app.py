@@ -12,6 +12,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
+from .core.models import HistoryFilter
 from .core.store import HistoryStore
 from .ocr.preprocess import prepare
 from .ocr.service import OcrService
@@ -197,16 +198,17 @@ class ClipboardMemoryApp(QObject):
         self._settings_dialog.activateWindow()
 
     def confirm_clear_history(self) -> None:
+        """Clears everything except pinned items. Pinned entries are always kept."""
+        pinned = self.store.count(flt=HistoryFilter.PINNED)
         box = QMessageBox(QMessageBox.Question, "Clear history", "Clear clipboard history?")
-        box.setInformativeText("Pinned items can be kept. This can’t be undone.")
-        keep = box.addButton("Clear all except pinned", QMessageBox.AcceptRole)
-        everything = box.addButton("Clear everything", QMessageBox.DestructiveRole)
-        box.addButton(QMessageBox.Cancel)
+        box.setInformativeText("Pinned items are kept" + (f" ({pinned})" if pinned else "") + ". This can’t be undone.")
+        box.addButton("Clear", QMessageBox.AcceptRole)
+        cancel = box.addButton(QMessageBox.Cancel)
+        box.setDefaultButton(cancel)
         box.setWindowFlag(box.windowFlags().WindowStaysOnTopHint, True)
         box.exec()
-        clicked = box.clickedButton()
-        if clicked in (keep, everything):
-            self.store.clear(keep_pinned=clicked is keep)
+        if box.clickedButton() is not cancel and box.buttonRole(box.clickedButton()) == QMessageBox.AcceptRole:
+            self.store.clear(keep_pinned=True)
             self.controller.historyChanged.emit()
             if self._settings_dialog:
                 self._settings_dialog._refresh_storage()

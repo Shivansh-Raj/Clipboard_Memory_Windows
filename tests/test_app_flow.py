@@ -149,3 +149,24 @@ def test_transform_creates_separate_entry(qapp, app):
     assert spin(qapp, lambda: app.store.count() == 2)
     assert app.store.payload(original).text == '{"b":1,"a":[1,2]}'                # original untouched
     app.panel.hide_panel()
+
+
+def test_clear_button_always_keeps_pinned(qapp, app):
+    cb = QGuiApplication.clipboard()
+    for t in ("keep this one", "drop one", "drop two"):
+        cb.setText(t)
+        spin(qapp, timeout=0.15)
+    assert spin(qapp, lambda: app.store.count() == 3)
+    app.panel.show_panel()
+    assert spin(qapp, lambda: len(app.controller.entries) == 3)
+    pinned = next(e for e in app.controller.entries if e.text == "keep this one")
+    app.controller.select(pinned.id)
+    app.controller.toggle_pin()
+    assert spin(qapp, lambda: app.store.entry(pinned.id).pinned)
+    app.panel.clear_btn.click()                       # first click only arms it
+    assert app.store.count() == 3
+    app.panel.clear_btn.click()                       # second click clears
+    assert spin(qapp, lambda: app.store.count() == 1)
+    assert app.store.entry(pinned.id) is not None     # pinned survives a full clear
+    assert spin(qapp, lambda: [e.id for e in app.controller.entries] == [pinned.id])
+    app.panel.hide_panel()

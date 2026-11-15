@@ -609,9 +609,20 @@ class HistoryPanel(QWidget):
         self.hints.setObjectName("faint")
         self.count = QLabel()
         self.count.setObjectName("faint")
+        self.clear_btn = QPushButton(" Clear")
+        self.clear_btn.setProperty("tool", True)
+        self.clear_btn.setFocusPolicy(Qt.NoFocus)
+        self.clear_btn.setToolTip("Clear history (pinned items are always kept)")
+        self.clear_btn.clicked.connect(self._clear_clicked)
+        self._clear_armed = False
+        self._clear_timer = QTimer(self)
+        self._clear_timer.setSingleShot(True)
+        self._clear_timer.timeout.connect(self._disarm_clear)
         frow2.addWidget(self.hints)
         frow2.addStretch()
         frow2.addWidget(self.count)
+        frow2.addSpacing(8)
+        frow2.addWidget(self.clear_btn)
         v.addLayout(frow2)
 
         self.toast = QLabel(self.card)
@@ -648,6 +659,7 @@ class HistoryPanel(QWidget):
         pal = self.palette_()
         self.setStyleSheet(stylesheet(pal))
         self.search_icon.setPixmap(icons.pixmap("search", pal.text2, 17, icons.screen_dpr()))
+        self.clear_btn.setIcon(icons.icon("trash", pal.text2, 13))
         self._on_entries()
         self.preview.refresh()
 
@@ -718,6 +730,22 @@ class HistoryPanel(QWidget):
         m.addAction("Delete", lambda: self.controller.delete_selected())
         m.exec(self.list.viewport().mapToGlobal(pos))
 
+    # ------------------------------------------------------------------ clear
+
+    def _clear_clicked(self) -> None:
+        """Two-step, no modal dialog (a dialog would steal focus and close the panel)."""
+        if not self._clear_armed:
+            self._clear_armed = True
+            self.clear_btn.setText(" Click again to clear")
+            self._clear_timer.start(3000)
+            return
+        self._disarm_clear()
+        self.controller.clear_unpinned()
+
+    def _disarm_clear(self) -> None:
+        self._clear_armed = False
+        self.clear_btn.setText(" Clear")
+
     # ------------------------------------------------------------------ toast
 
     def show_toast(self, message: str) -> None:
@@ -776,6 +804,7 @@ class HistoryPanel(QWidget):
     def hide_panel(self) -> None:
         if not self.isVisible():
             return
+        self._disarm_clear()
         QApplication.instance().removeEventFilter(self)
         self.settings.panel_width = self.width() - 2 * MARGIN
         self.settings.panel_height = self.height() - 2 * MARGIN

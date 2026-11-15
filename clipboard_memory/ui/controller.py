@@ -201,6 +201,16 @@ class HistoryController(QObject):
         self.toast("Deleted")
         self.reload(reset_scroll=False)
 
+    def clear_unpinned(self) -> int:
+        """Clear the history. Pinned entries are always kept. Returns how many were removed."""
+        before = self.store.total_count()
+        self.store.clear(keep_pinned=True)
+        removed = before - self.store.total_count()
+        self.reload(select_first=True)
+        kept = self.store.total_count()
+        self.toast(f"Cleared {removed:,} item{'s' if removed != 1 else ''}" + (f" · {kept} pinned kept" if kept else ""))
+        return removed
+
     def set_tags(self, e: ClipEntry, text: str) -> None:
         self.store.set_tags(e.id, text.split(","))
         self.reload(reset_scroll=False)

@@ -229,7 +229,7 @@ class SettingsDialog(QDialog):
         self.storage = QLabel()
         v.addWidget(self.storage)
         row = QHBoxLayout()
-        clear = QPushButton("Clear history…")
+        clear = QPushButton("Clear history (keeps pinned)…")
         clear.setProperty("plain", True)
         clear.clicked.connect(self.app.confirm_clear_history)
         openf = QPushButton("Open data folder")

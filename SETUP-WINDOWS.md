@@ -124,6 +124,7 @@ Nothing is sent over the network, and no telemetry is collected.
 
 ## Limits worth knowing
 
+- **Clear** (bottom-right of the history window, the tray menu, or Settings → History) removes everything except pinned items. Pinned items are never removed by Clear or by automatic cleanup; only deleting them yourself removes them.
 - It restores items to the clipboard; you press `Ctrl+V` yourself.
 - Sensitive-content detection is heuristic. It misses some secrets and flags some harmless text.
 - Text is saved with `\n` line endings and restored with `\r\n`.
