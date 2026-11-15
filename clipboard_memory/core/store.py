@@ -202,13 +202,13 @@ class HistoryStore:
                 for f in files:
                     (self.images_dir / f).unlink(missing_ok=True)
 
-    def clear(self, keep_pinned: bool) -> None:
-        """Removes history. Pinned entries survive when keep_pinned is true."""
+    def clear(self, keep_protected: bool) -> None:
+        """Removes history. Pinned and favourite entries survive when keep_protected is true."""
         with self._lock:
-            where = " AND pinned = 0" if keep_pinned else ""
+            where = " AND pinned = 0 AND favorite = 0" if keep_protected else ""
             files = [r[0] for r in self._query(
                 "SELECT image_file FROM entries WHERE image_file IS NOT NULL" + where)]
-            self._run("DELETE FROM entries" + (" WHERE pinned = 0" if keep_pinned else ""))
+            self._run("DELETE FROM entries" + (" WHERE pinned = 0 AND favorite = 0" if keep_protected else ""))
             for f in files:
                 (self.images_dir / f).unlink(missing_ok=True)
             try:
@@ -216,18 +216,22 @@ class HistoryStore:
             except sqlite3.Error:
                 pass
 
+    def protected_count(self) -> int:
+        """Entries that Clear and automatic cleanup never remove (pinned or favourite)."""
+        return self._query("SELECT count(*) FROM entries WHERE pinned = 1 OR favorite = 1")[0][0]
+
     def purge(self, older_than_days: int, max_entries: int, now: Optional[float] = None) -> int:
-        """Applies retention. Pinned entries are never removed. Returns the number of removed entries."""
+        """Applies retention. Pinned and favourite entries are never removed. Returns the number removed."""
         now = time.time() if now is None else now
         ids: set[int] = set()
         with self._lock:
             if older_than_days > 0:
                 cutoff = now - older_than_days * 86400
                 ids.update(r[0] for r in self._query(
-                    "SELECT id FROM entries WHERE pinned = 0 AND last_copied_at < ?", (cutoff,)))
+                    "SELECT id FROM entries WHERE pinned = 0 AND favorite = 0 AND last_copied_at < ?", (cutoff,)))
             if max_entries > 0:
                 ids.update(r[0] for r in self._query(
-                    "SELECT id FROM entries WHERE pinned = 0 ORDER BY last_copied_at DESC LIMIT -1 OFFSET ?",
+                    "SELECT id FROM entries WHERE pinned = 0 AND favorite = 0 ORDER BY last_copied_at DESC LIMIT -1 OFFSET ?",
                     (max_entries,)))
             self.delete(list(ids))
         return len(ids)

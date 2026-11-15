@@ -96,8 +96,9 @@ def test_pin_favorite_tags_retention(store):
     assert store.entry(q).tags == ["sql", "work"]
     assert [e.id for e in store.fetch(flt=F.PINNED)] == [p]
     assert len(store.fetch(search="work")) == 1
-    assert store.purge(30, 0) == 1
-    assert store.entry(p) is not None and store.entry(q) is None
+    d, _ = store.save(NewClip(kind=K.TEXT, text="plain old"), now=old)
+    assert store.purge(30, 0) == 1                      # V2: favourites are protected like pinned items
+    assert store.entry(p) is not None and store.entry(q) is not None and store.entry(d) is None
 
 
 def test_images_and_persistence(tmp_path):
@@ -120,9 +121,9 @@ def test_clear_keeps_pinned(store):
     a, _ = store.save(NewClip(kind=K.TEXT, text="a"))
     store.save(NewClip(kind=K.TEXT, text="b"))
     store.set_pinned(a, True)
-    store.clear(keep_pinned=True)
+    store.clear(keep_protected=True)
     assert store.count() == 1
-    store.clear(keep_pinned=False)
+    store.clear(keep_protected=False)
     assert store.count() == 0
 
 
@@ -153,3 +154,20 @@ def test_image_ocr_state(store):
     store.set_ocr(i, "Invoice 4821", "done")
     assert store.pending_ocr_ids() == []
     assert store.fetch(search="invoice 4821")[0].id == i       # OCR text is searchable
+
+
+def test_favourites_survive_clear_and_retention(store):
+    old = time.time() - 400 * 86400
+    p, _ = store.save(NewClip(kind=K.TEXT, text="pinned"), now=old)
+    f, _ = store.save(NewClip(kind=K.TEXT, text="favourite"), now=old)
+    x, _ = store.save(NewClip(kind=K.TEXT, text="plain"), now=old)
+    store.set_pinned(p, True)
+    store.set_favorite(f, True)
+    assert store.protected_count() == 2
+    assert store.purge(30, 0) == 1 and store.entry(x) is None           # age limit spares both
+    for i in range(5):
+        store.save(NewClip(kind=K.TEXT, text=f"newer {i}"))
+    store.purge(0, 1)                                                   # count limit spares both
+    assert store.entry(p) and store.entry(f)
+    store.clear(keep_protected=True)
+    assert store.count() == 2 and store.entry(p) and store.entry(f)

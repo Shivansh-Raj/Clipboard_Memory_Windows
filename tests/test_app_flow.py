@@ -170,3 +170,20 @@ def test_clear_button_always_keeps_pinned(qapp, app):
     assert app.store.entry(pinned.id) is not None     # pinned survives a full clear
     assert spin(qapp, lambda: [e.id for e in app.controller.entries] == [pinned.id])
     app.panel.hide_panel()
+
+
+def test_clear_button_keeps_favourites_too(qapp, app):
+    cb = QGuiApplication.clipboard()
+    for t in ("fav one", "plain one"):
+        cb.setText(t)
+        spin(qapp, timeout=0.15)
+    assert spin(qapp, lambda: app.store.count() == 2)
+    fav = next(e for e in app.store.fetch() if e.text == "fav one")
+    app.store.set_favorite(fav.id, True)
+    app.panel.show_panel()
+    spin(qapp, lambda: len(app.controller.entries) == 2)
+    app.panel.clear_btn.click()
+    app.panel.clear_btn.click()
+    assert spin(qapp, lambda: app.store.count() == 1)
+    assert app.store.entry(fav.id) is not None
+    app.panel.hide_panel()

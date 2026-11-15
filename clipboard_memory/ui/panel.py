@@ -612,7 +612,7 @@ class HistoryPanel(QWidget):
         self.clear_btn = QPushButton(" Clear")
         self.clear_btn.setProperty("tool", True)
         self.clear_btn.setFocusPolicy(Qt.NoFocus)
-        self.clear_btn.setToolTip("Clear history (pinned items are always kept)")
+        self.clear_btn.setToolTip("Clear history (pinned and favourite items are always kept)")
         self.clear_btn.clicked.connect(self._clear_clicked)
         self._clear_armed = False
         self._clear_timer = QTimer(self)
