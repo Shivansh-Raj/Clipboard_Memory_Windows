@@ -78,6 +78,17 @@ def selftest_ocr(out: str | None) -> int:
         result["steps"]["search_returns_original_image"] = bool(found) and found[0].id == eid
         orig = store.payload(eid).image_path
         result["steps"]["original_image_intact"] = Path(orig).read_bytes() == png
+        # Diagnostics (synthetic text only): what each path actually read, to make failures explainable.
+        raw = Path(tmp) / "raw.png"
+        raw.write_bytes(png)
+        dbg: dict = {"service_text": text}
+        try:
+            dbg["raw_text"] = engine.recognize(raw)
+            prepared = prepare(raw, Path(tmp) / "work2")
+            dbg["prepared_text"] = engine.recognize(prepared) if prepared else None
+        except Exception as e:                      # diagnostics must never change the verdict
+            dbg["error"] = repr(e)
+        result["debug"] = dbg
         svc.stop()
         store.close()
     result["passed"] = all(v is True for k, v in result["steps"].items() if k != "ocr_text_length")

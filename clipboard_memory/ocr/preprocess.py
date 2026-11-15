@@ -16,11 +16,8 @@ def prepare(src: Path, work_dir: Path) -> Optional[Path]:
     if img.isNull():
         return None
     w, h = img.width(), img.height()
-    scale = 1
-    if max(w, h) < 1000:
-        scale = 3
-    elif max(w, h) < 1800:
-        scale = 2
+    # Tesseract works best when text is roughly 20-40px tall; only genuinely tiny crops benefit from upscaling.
+    scale = 2 if max(w, h) < 500 else 1
     if scale > 1:
         img = img.scaled(w * scale, h * scale, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
     if img.hasAlphaChannel():                       # flatten transparency onto white
