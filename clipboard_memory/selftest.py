@@ -55,7 +55,7 @@ def selftest_ocr(out: str | None) -> int:
     font.setPixelSize(54)
     p.setFont(font)
     p.drawText(30, 100, "Clipboard Memory OCR test")
-    p.drawText(30, 190, "Invoice 4821 total")
+    p.drawText(30, 190, "Quarterly invoice summary")
     p.end()
     png = images.image_to_png(img)
 
@@ -73,8 +73,8 @@ def selftest_ocr(out: str | None) -> int:
         result["steps"]["ocr_finished"] = done and entry.ocr_status == "done"
         result["steps"]["ocr_text_length"] = len(text)       # content itself is deliberately not recorded
         low = text.lower()
-        result["steps"]["text_recognised"] = "clipboard" in low and "4821" in low
-        found = store.fetch(search="invoice 4821")
+        result["steps"]["text_recognised"] = "clipboard" in low and "invoice" in low   # words, not digits: OCR can misread digits
+        found = store.fetch(search="quarterly invoice")
         result["steps"]["search_returns_original_image"] = bool(found) and found[0].id == eid
         orig = store.payload(eid).image_path
         result["steps"]["original_image_intact"] = Path(orig).read_bytes() == png
