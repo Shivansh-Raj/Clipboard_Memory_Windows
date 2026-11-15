@@ -1,0 +1,66 @@
+name: build-windows
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      QT_QPA_PLATFORM: windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Unit tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q
+
+      - name: Stage bundled Tesseract (checksum-verified)
+        run: python packaging/fetch_tesseract.py
+
+      - name: Build packaged app (PyInstaller)
+        run: python packaging/build.py
+
+      # The acceptance test for OCR: it must work from the *packaged* exe, using only the bundled Tesseract.
+      - name: OCR self-test on the packaged app
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "ocr.json"
+          $p = Start-Process -FilePath "dist\ClipboardMemory\ClipboardMemory.exe" -ArgumentList "--selftest-ocr", $out -Wait -PassThru
+          if (Test-Path $out) { Get-Content $out } else { Write-Host "no result file written" }
+          if ($p.ExitCode -ne 0) { throw "OCR self-test failed (exit $($p.ExitCode))" }
+
+      - name: Windows clipboard / hotkey self-test on the packaged app
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "win.json"
+          $p = Start-Process -FilePath "dist\ClipboardMemory\ClipboardMemory.exe" -ArgumentList "--selftest-windows", $out -Wait -PassThru
+          if (Test-Path $out) { Get-Content $out } else { Write-Host "no result file written" }
+          if ($p.ExitCode -ne 0) { throw "Windows self-test failed (exit $($p.ExitCode))" }
+
+      - name: App starts and keeps running in the background
+        shell: pwsh
+        run: |
+          $env:CLIPBOARD_MEMORY_HOME = Join-Path $env:RUNNER_TEMP "cm-smoke"
+          $p = Start-Process -FilePath "dist\ClipboardMemory\ClipboardMemory.exe" -ArgumentList "--background" -PassThru
+          Start-Sleep -Seconds 6
+          if ($p.HasExited) { throw "app exited early with code $($p.ExitCode)" }
+          Stop-Process -Id $p.Id -Force
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ClipboardMemory-win64
+          path: dist/ClipboardMemory-*-win64.zip
